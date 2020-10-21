@@ -8,9 +8,17 @@ import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
 import com.badlogic.gdx.graphics.Texture;
 import com.badlogic.gdx.graphics.g2d.SpriteBatch;
+import com.badlogic.gdx.math.MathUtils;
 import com.badlogic.gdx.math.Rectangle;
 import com.badlogic.gdx.math.Vector3;
+import com.badlogic.gdx.utils.Array;
+import com.badlogic.gdx.utils.TimeUtils;
 
+import java.util.Iterator;
+
+/**
+ * @author zhengguochun
+ */
 public class Drop extends ApplicationAdapter {
 	private Texture dropImage;
 	private Texture bucketImage;
@@ -19,11 +27,13 @@ public class Drop extends ApplicationAdapter {
 	private OrthographicCamera camera;
 	private SpriteBatch batch;
 	private Rectangle bucket;
+	private Array<Rectangle> rainDrops;
+	private long lastDropTime;
 
 	@Override
 	public void create() {
 		// load the images for the droplet and the bucket, 64x64 pixels each
-		dropImage = new Texture(Gdx.files.internal("droplet.png"));
+		dropImage = new Texture(Gdx.files.internal("waterDrop.png"));
 		bucketImage = new Texture(Gdx.files.internal("bucket.png"));
 
 		// load the drop sound effect and the rain background "music"
@@ -42,6 +52,8 @@ public class Drop extends ApplicationAdapter {
 		bucket.y = 20;
 		bucket.width = 64;
 		bucket.height = 64;
+		rainDrops = new Array<Rectangle>();
+		spawnRaindrop();
 	}
 
 	@Override
@@ -52,6 +64,9 @@ public class Drop extends ApplicationAdapter {
 		batch.setProjectionMatrix(camera.combined);
 		batch.begin();
 		batch.draw(bucketImage, bucket.x, bucket.y);
+		for (Rectangle raindrop : rainDrops){
+			batch.draw(dropImage,  raindrop.x, raindrop.y);
+		}
 		batch.end();
 		if(Gdx.input.isTouched()) {
 			Vector3 touchPos = new Vector3();
@@ -59,5 +74,46 @@ public class Drop extends ApplicationAdapter {
 			camera.unproject(touchPos);
 			bucket.x = touchPos.x - 64 / 2;
 		}
+		if(bucket.x < 0) {
+			bucket.x = 0;
+		}
+		if(bucket.x > 800 - 64) {
+			bucket.x = 800 - 64;
+		}
+		if (TimeUtils.nanoTime() - lastDropTime > 1000000000){
+			spawnRaindrop();
+		}
+		for (Iterator<Rectangle> iterable = rainDrops.iterator(); iterable.hasNext();){
+			Rectangle raindrop = iterable.next();
+			raindrop.y -= 200 * Gdx.graphics.getDeltaTime();
+			if (raindrop.y + 64 < 0){
+				iterable.remove();
+			}
+			if (raindrop.overlaps(bucket)){
+				dropSound.play();
+				iterable.remove();
+			}
+		}
+
+
+	}
+
+	private void spawnRaindrop(){
+		Rectangle raindrop = new Rectangle();
+		raindrop.x = MathUtils.random(0, 800-64);
+		raindrop.y = 480;
+		raindrop.width = 64;
+		raindrop.height = 64;
+		rainDrops.add(raindrop);
+		lastDropTime = TimeUtils.nanoTime();
+	}
+
+	@Override
+	public void dispose() {
+		dropImage.dispose();
+		bucketImage.dispose();
+		dropSound.dispose();
+		rainMusic.dispose();
+		batch.dispose();
 	}
 }
